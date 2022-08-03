@@ -12,6 +12,16 @@ Sys.getenv("scdb_readpass")
 
 source("~/R/projects/SilverCreekDB/dnIntakeTools.R")
 
+scdb=dbConnect(readOnly=T)
+
+scdb=dbConnect(RPostgres::Postgres(),
+               host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
+               port="25060",
+               dbname="silvercreekdb" ,
+               user="dbwrite",
+               password=Sys.getenv("scdb_pass")
+
+)
 
 dbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
 dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))

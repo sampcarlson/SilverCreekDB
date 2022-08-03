@@ -1,5 +1,5 @@
 
-dbConnect=function(readOnly=T){
+scdbConnect=function(readOnly=T){
   if(readOnly){
     scdb=dbConnect(RPostgres::Postgres(),
                    host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
