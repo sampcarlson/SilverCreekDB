@@ -259,14 +259,16 @@ dbRemoveDuplicates=function(table, idCol, uniqueCols){
                                idCol," > b.",idCol,";"))[,1]
   
   if(length(rmID)>=1){
-    print(paste("Removed duplicate entries from", table, "with id:",rmID))
+    print(paste("Removed",length(rmID),"duplicate(s) entries from", table))
     dbExecute(conn, paste0("DELETE FROM ", table, " WHERE ", table, ".", idCol, " IN ('",paste0(rmID,collapse="', '"),"');"))
     
   }
+  #return(rmID)
 }
 
 dbWriteIntakeFile_1=function(fileName){
-  formatDF=parseIntakeFile(dbIntakeKey$fileName[1])
+  print(fileName)
+  formatDF=parseIntakeFile(fileName)
   #identify location source
   if("DO" %in% names(formatDF)){ 
     sourceNote="source_DOLocations.gpkg"
