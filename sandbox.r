@@ -2,38 +2,25 @@ library(sf)
 library(RPostgres)
 library(DBI)
 
-
-usethis::edit_r_environ()
-
-
-Sys.getenv("scdb_pass")
-Sys.getenv("scdb_readpass")
-
-
 source("~/R/projects/SilverCreekDB/dnIntakeTools.R")
 
-scdb=dbConnect(readOnly=T)
+conn=scdbConnect(readOnly = F)
 
-scdb=dbConnect(RPostgres::Postgres(),
-               host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
-               port="25060",
-               dbname="silvercreekdb" ,
-               user="dbwrite",
-               password=Sys.getenv("scdb_pass")
+#write Points:
+temperaturePoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")
 
-)
+#dbExecute(conn,"INSERT INTO locations (name, geometry, sourcenote, sitenote) VALUES ('Temperature #1', 'SRID=26911;POINT(744775.847791251 4791427.82542968)', 'temperatureLocations_source', 'TestPoint' );")
+writePt=dbWritePoints(temperaturePoints)
+
+dbGetQuery(conn, "SELECT * FROM locations;")
+#dbExecute(conn,"DELETE FROM locations;")
+
+dbGetQuery(conn,"SELECT locations.sitenote FROM locations WHERE ST_DWithin( 'SRID=26911;POINT(728910 4803082)', locations.geometry, 10000);")
 
 dbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
 dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
 
-formFile=parseIntakeFile(dbIntakeKey$fileName[1],site=1)
 
+formFile=parseIntakeFile(dbIntakeKey$fileName[1])
 
-spatSource=joinToSpatialObject(formFile,sourceID_name="site")
-
-writePt=prepPointLocations(spatSource)
-
-dbGetQuery(con,"SELECT * FROM pointlocations")
-
-dbGetQuery(con,"SELECT pointlocations.sitenote FROM pointlocations WHERE ST_DWithin( ST_SetSRID(ST_MakePoint(728910, 4803082),26911 ), pointlocations.point, 10000);")
