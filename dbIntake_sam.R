@@ -24,48 +24,9 @@ dbWritePoints(swPoints,locationNameCol = "STANAME", sourceNoteCol = "source_SWLo
 dbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
 dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
-dbWriteIntakeFile_1=function(fileName){
-  formatDF=parseIntakeFile(dbIntakeKey$fileName[1])
-  #identify location source
-  if("DO" %in% names(formatDF)){ 
-    sourceNote="source_DOLocations.gpkg"
-  } else if ("WaterTemp" %in% names(formatDF)) { #DO datasets also contain WaterTemp, thus this condition only applys if "DO" is absent
-    sourceNote="source_TemperatureLocations.gpkg"
-  }
-  #get location ids
-  locations=data.frame(source_site=unique(formatDF$site))
-  locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote="source_DOLocations.gpkg")
-  
-  formatDF=merge(formatDF,locations,by.x="site",by.y="source_site")
-  
-  #write data
-  if("DO" %in% names(formatDF)){
-    dbWriteData(metric="dissolved oxygen",
-                value=formatDF$DO,
-                datetime = formatDF$Date,
-                locationID=formatDF$locationID,
-                sourceName=fileName,
-                units = "mg/l",
-                isPrediction=F,
-                addMetric=T)
-  }
-  
-  if("WaterTemp" %in% names(formatDF)){
-    dbWriteData(metric="water temperature",
-                value=formatDF$DO,
-                datetime = formatDF$Date,
-                locationID=formatDF$locationID,
-                sourceName=fileName,
-                units = "c",
-                isPrediction=F,
-                addMetric=T)
-  }
-  
-}
-
 dbWriteIntakeFile_1(dbIntakeKey$fileName[1])
 
-#dbWriteData(metric, value, datetime, locationID, sourceName, units, isPrediction, addMetric )
+#dbWriteData(metric, value, datetime, locationID, sourceName, units, isPrediction, addMetric)
 
 
-
+#2*23506

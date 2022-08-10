@@ -24,3 +24,16 @@ dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
 formFile=parseIntakeFile(dbIntakeKey$fileName[1])
 
+
+dbGetQuery(conn, "SELECT * FROM batches;")
+
+dbGetQuery(conn, "SELECT b.batchid FROM batches b, batches b2 WHERE b.source = b2.source AND b.batchid > b2.batchid;")
+
+uniqueCols=c("source","include")
+
+
+
+dbGetQuery(conn,"SELECT metric, COUNT(*) AS CountOf FROM data GROUP BY metric HAVING COUNT(*)>1;")
+dbGetQuery(conn,"SELECT metric, value, datetime, locationid, COUNT(*) FROM data 
+            GROUP BY metric, value, datetime, locationid HAVING( COUNT(*) > 1);")
+

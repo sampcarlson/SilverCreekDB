@@ -60,55 +60,85 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   ##############check/write batch:---------------
   batchID=dbWriteBatch(sourceName)
   
-  ##############check location:-------------
-  if(!locationID %in% dbGetQuery(dbHandle,"SELECT locationid FROM locations;")$locationid){#location not correct
-    stop(paste("locationID",locationID,"not present in locations table:"))
+  ##############check for missing locations:-------------
+  existingLocationIDs=dbGetQuery(dbHandle,"SELECT locationid FROM locations;")$locationid
+  missingLocations=unique(locationID[!locationID %in% existingLocationIDs])
+  if(length(missingLocations)>0){
+    stop(paste("locationID(s)",missingLocations,"not present in locations table:"))
   }
+  
+  
   ##########check/write metric:--------------
+  metricDone=F
   metricIsNumeric=suppressWarnings( {!is.na(as.numeric(metric))} ) #is metric numeric?
   
-  if(addMetric & ( metricIsNumeric | units=="" )){ #if addMetric, check if required info is given
-    stop(paste("named metric and units required to add new metric record"))
-  } else if(!metricIsNumeric) {#if metric is not numeric
+  if(length(metric)>1){
+    print(paste("metrics:",metric))
+    stop("Only metric allowed per writeData function call")
+  }
+  
+  if (metricIsNumeric) {
+    metricName=dbGetQuery(dbHandle,paste0("SELECT name FROM metrics WHERE metrics.metricid = '",metric,"';"))$name
+    if(length(metricName)==1){ #found metric by id, all good
+      metricID=metric 
+      metricDone=T
+    } else if(addMetric ){ #if metricIsNumeric and not already present, and addMetric=T, no good.
+      stop(paste("Named metric and units required to add new metric record"))
+    } 
+    
+  }
+  
+  if(!metricIsNumeric) {#if metric is not numeric
     #look for metric by name, get id
     metricID=dbGetQuery(dbHandle,paste0("SELECT metricid FROM metrics WHERE metrics.name = '",metric,"';"))$metricid
     metricName=metric 
-    
-    if(identical(metricID,integer(0)) & addMetric){#if no record of metric, and addMetric = T
+    if(length(metricID)==1){#got it!
+      metricDone=T
+    } else if(addMetric){#if no record of metric, and addMetric = T
+      #check for units...
+      if(units==""){ #if !metricIsNumeric and addMetric=T and no units given, no good
+        stop(paste("Named metric and units required to add new metric record"))
+      } 
+      
       #go ahead and add it, and get the new id back
       dbExecute(dbHandle,paste0("INSERT INTO metrics (name, units, isprediction) VALUES ('",metric,"', '",
                                 units,"', '",
                                 isPrediction,"');"))
       metricID=dbGetQuery(dbHandle,paste0("SELECT metricid FROM metrics WHERE metrics.name = '",metric,"';"))$metricid
+      metricDone=T
     }
     
-  } else { #if metric is numeric
-    #look for metric by id, get name
-    metricName=dbGetQuery(dbHandle,paste0("SELECT name FROM metrics WHERE metrics.metricid = '",metric,"';"))$name
-    metricID=metric
   } 
-  if(!exists("metricID")){ #if the above lines did not define a metric
+  
+  if(!metricDone){ #if the above lines did not define a metric
     print(paste("Metric", metric, "not found or added.  Known metrics:"))
     print(dbGetQuery(dbHandle,"SELECT * FROM metrics;"))
     stop("correct or set addMetric=T")
   } 
   
-  writeMe=data.frame(value=value,metricName=metricName,datetime=datetime,metricID=metricID,locationID=locationID,batchID=batchID)
+  writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID)
+  writeMe$value=as.numeric(writeMe$value)
+  writeMe=writeMe[complete.cases(writeMe$value),]
   
   ########write data:--------------
-  #update to write whole table at once
-  for(i in 1:nrow(writeMe)){
-    query=paste0("INSERT INTO data (metric, value, datetime, metricid, locationid, batchid) VALUES ('",
-                 writeMe$metricName[i],"', '",
-                 as.numeric(writeMe$value[i]),"', '",
-                 writeMe$datetime[i],"', '",
-                 writeMe$metricID[i],"', '",
-                 writeMe$locationID[i],"', '",
-                 writeMe$batchID[i],"');")
-    print(query)
-    dbExecute(dbHandle,query)
+  dbAppendTable(conn, name="data", value=writeMe)
+  
+  #one at a time (for debug)
+  #  for(i in 1:nrow(writeMe)){
+  #    query=paste0("INSERT INTO data (metric, value, datetime, metricid, locationid, batchid) VALUES ('",
+  #                 writeMe$metricName[i],"', '",
+  #                 writeMe$value[i],"', '",
+  #                 writeMe$datetime[i],"', '",
+  #                 writeMe$metricid[i],"', '",
+  #                 writeMe$locationid[i],"', '",
+  #                 writeMe$batchid[i],"');")
+  #    print(query)
+  #    dbExecute(dbHandle,query)
+  #  }
+  
+  #delete not unique:
+  dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid"))
   }
-}
 
 dbGetLocationID=function(source_site_id,sourceNote){
   location=dbGetQuery(conn,paste0("SELECT locationid, name, sitenote FROM locations WHERE locations.sourcenote='",sourceNote,"'
@@ -213,11 +243,71 @@ dbWritePoints=function(writeDF,locationNameCol="Name",sourceNoteCol="",siteNoteC
                  writeLine$sitenote,"', '",
                  writeLine$source_site_id,"');" )
     
-    print(query)
+    #print(query)
     
     dbExecute(conn,query)
     
   }
-  
+  dbRemoveDuplicates(table="locations",idCol = "locationid", uniqueCols = c("name","geometry","sourcenote","source_site_id","sitenote"))
   #return(writeDF)
+}
+
+dbRemoveDuplicates=function(table, idCol, uniqueCols){
+  
+  rmID=dbGetQuery(conn, paste0("SELECT ",paste0("a.",idCol)," FROM ", table, " a, ", table, " b WHERE ",
+                               paste0("a.",uniqueCols, " = b.", uniqueCols, collapse = " AND "), " AND a.",
+                               idCol," > b.",idCol,";"))[,1]
+  
+  if(length(rmID)>=1){
+    print(paste("Removed duplicate entries from", table, "with id:",rmID))
+    dbExecute(conn, paste0("DELETE FROM ", table, " WHERE ", table, ".", idCol, " IN ('",paste0(rmID,collapse="', '"),"');"))
+    
+  }
+}
+
+dbWriteIntakeFile_1=function(fileName){
+  formatDF=parseIntakeFile(dbIntakeKey$fileName[1])
+  #identify location source
+  if("DO" %in% names(formatDF)){ 
+    sourceNote="source_DOLocations.gpkg"
+  } else if ("WaterTemp" %in% names(formatDF)) { #DO datasets also contain WaterTemp, thus this condition only applys if "DO" is absent
+    sourceNote="source_TemperatureLocations.gpkg"
+  }
+  #get location ids
+  locations=data.frame(source_site=unique(formatDF$site))
+  locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote="source_DOLocations.gpkg")
+  
+  formatDF=merge(formatDF,locations,by.x="site",by.y="source_site")
+  
+  #write data
+  if("DO" %in% names(formatDF)){
+    dbWriteData(metric="dissolved oxygen",
+                value=formatDF$DO,
+                datetime = formatDF$Date,
+                locationID=formatDF$locationID,
+                sourceName=fileName,
+                units = "mg/l",
+                isPrediction=F,
+                addMetric=T)
+  }
+  
+  if("WaterTemp" %in% names(formatDF)){
+    dbWriteData(metric="water temperature",
+                value=formatDF$DO,
+                datetime = formatDF$Date,
+                locationID=formatDF$locationID,
+                sourceName=fileName,
+                units = "c",
+                isPrediction=F,
+                addMetric=T)
+  }
+  
+}
+
+
+.db____DROPALLDATA=function(){
+  dbExecute(conn,"DELETE FROM data;")
+  dbExecute(conn,"DELETE FROM metrics;")
+  dbExecute(conn,"DELETE FROM locations;")
+  dbExecute(conn,"DELETE FROM batches;")
 }
