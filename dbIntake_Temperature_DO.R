@@ -6,7 +6,7 @@ library(DBI)
 source("~/R/projects/SilverCreekDB/dbIntakeTools.R")
 conn=scdbConnect(readOnly = F)
 
-#.db____DROPALLDATA()
+.db____DROPALLDATA()
 
 #write locations:
 temperaturePoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")
@@ -28,9 +28,6 @@ dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
 sapply(dbIntakeKey$fileName, dbWriteIntakeFile_1)
 
-dbWriteIntakeFile_1(dbIntakeKey$fileName[1])
-
 #dbWriteData(metric, value, datetime, locationID, sourceName, units, isPrediction, addMetric)
 
 
-#2*23506

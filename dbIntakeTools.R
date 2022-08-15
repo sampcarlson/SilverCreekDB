@@ -53,18 +53,19 @@ dbWriteBatch=function(batch,notes=" ",include=T,dbHandle=conn){
 }
 
 dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPrediction=F,addMetric=F,dbHandle=conn){
-  value=value[,1] #strip extra attributes
+  if(is.data.frame(value)){value=value[,1]} #strip extra attributes
   
   #first check batches, locations, and metrics
   
   ##############check/write batch:---------------
   batchID=dbWriteBatch(sourceName)
   
+  
   ##############check for missing locations:-------------
   existingLocationIDs=dbGetQuery(dbHandle,"SELECT locationid FROM locations;")$locationid
   missingLocations=unique(locationID[!locationID %in% existingLocationIDs])
   if(length(missingLocations)>0){
-    stop(paste("locationID(s)",missingLocations,"not present in locations table:"))
+    stop(paste("locationID(s)",missingLocations,"not present in locations table"))
   }
   
   
@@ -115,12 +116,14 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
     print(dbGetQuery(dbHandle,"SELECT * FROM metrics;"))
     stop("correct or set addMetric=T")
   } 
+ 
+  ########write data:--------------
   
+   
   writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID)
   writeMe$value=as.numeric(writeMe$value)
   writeMe=writeMe[complete.cases(writeMe$value),]
   
-  ########write data:--------------
   dbAppendTable(conn, name="data", value=writeMe)
   
   #one at a time (for debug)
@@ -138,7 +141,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   
   #delete not unique:
   dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid"))
-  }
+}
 
 dbGetLocationID=function(source_site_id,sourceNote){
   location=dbGetQuery(conn,paste0("SELECT locationid, name, sitenote FROM locations WHERE locations.sourcenote='",sourceNote,"'
@@ -258,11 +261,12 @@ dbRemoveDuplicates=function(table, idCol, uniqueCols){
                                paste0("a.",uniqueCols, " = b.", uniqueCols, collapse = " AND "), " AND a.",
                                idCol," > b.",idCol,";"))[,1]
   
-  if(length(rmID)>=1){
-    print(paste("Removed",length(rmID),"duplicate(s) entries from", table))
+  if(length(rmID)>0){
+    
     dbExecute(conn, paste0("DELETE FROM ", table, " WHERE ", table, ".", idCol, " IN ('",paste0(rmID,collapse="', '"),"');"))
     
   }
+  return(paste("Removed",length(rmID),"duplicate(s) from table: ", table))
   #return(rmID)
 }
 
@@ -277,7 +281,7 @@ dbWriteIntakeFile_1=function(fileName){
   }
   #get location ids
   locations=data.frame(source_site=unique(formatDF$site))
-  locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote="source_DOLocations.gpkg")
+  locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote=sourceNote)
   
   formatDF=merge(formatDF,locations,by.x="site",by.y="source_site")
   
@@ -295,7 +299,7 @@ dbWriteIntakeFile_1=function(fileName){
   
   if("WaterTemp" %in% names(formatDF)){
     dbWriteData(metric="water temperature",
-                value=formatDF$DO,
+                value=formatDF$WaterTemp,
                 datetime = formatDF$Date,
                 locationID=formatDF$locationID,
                 sourceName=fileName,
@@ -308,8 +312,8 @@ dbWriteIntakeFile_1=function(fileName){
 
 
 .db____DROPALLDATA=function(){
-  dbExecute(conn,"DELETE FROM data;")
-  dbExecute(conn,"DELETE FROM metrics;")
-  dbExecute(conn,"DELETE FROM locations;")
-  dbExecute(conn,"DELETE FROM batches;")
+  dbExecute(conn,"TRUNCATE TABLE data RESTART IDENTITY CASCADE;")
+  dbExecute(conn,"TRUNCATE TABLE metrics RESTART IDENTITY CASCADE;")
+  dbExecute(conn,"TRUNCATE TABLE locations RESTART IDENTITY CASCADE;")
+  dbExecute(conn,"TRUNCATE TABLE batches RESTART IDENTITY CASCADE;")
 }
