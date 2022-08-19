@@ -65,7 +65,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   existingLocationIDs=dbGetQuery(dbHandle,"SELECT locationid FROM locations;")$locationid
   missingLocations=unique(locationID[!locationID %in% existingLocationIDs])
   if(length(missingLocations)>0){
-    stop(paste("locationID(s)",missingLocations,"not present in locations table"))
+    stop(paste("locationID(s)",missingLocations,"not present in locations table \n"))
   }
   
   
@@ -116,10 +116,10 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
     print(dbGetQuery(dbHandle,"SELECT * FROM metrics;"))
     stop("correct or set addMetric=T")
   } 
- 
+  
   ########write data:--------------
   
-   
+  
   writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID)
   writeMe$value=as.numeric(writeMe$value)
   writeMe=writeMe[complete.cases(writeMe$value),]
@@ -232,23 +232,34 @@ dbWritePoints=function(writeDF,locationNameCol="Name",sourceNoteCol="",siteNoteC
   
   cleanDF$point="0 0"
   
-  #works with a single line only, iterate through...  could use dbWriteTable instead
+  #works with a single line only, checks validity of each record before writing
   for (i in 1:nrow(cleanDF)){
     writeLine=cleanDF[i,]
     writeLine$point=paste0(st_coordinates(writeDF$geom[i])[1]," ",st_coordinates(writeDF$geom[i])[2])
     
-    # print(writeLine)
-    
-    query=paste0("INSERT INTO locations (name, geometry, sourcenote, sitenote, source_site_id) VALUES ('",
-                 writeLine$name,"', ",
-                 "'SRID=",srid,";POINT(",writeLine$point,")', '",
-                 writeLine$sourcenote,"', '",
-                 writeLine$sitenote,"', '",
-                 writeLine$source_site_id,"');" )
-    
-    #print(query)
-    
-    dbExecute(conn,query)
+    matchingRecordsByID=dbGetQuery(conn,paste0("SELECT * FROM locations WHERE source_site_id = '",writeLine$source_site_id,"';"))
+    if(nrow(matchingRecordsByID>0)){
+      print(">This record:")
+      print(writeLine)
+      print(">>Matching records found:")
+      print(matchingRecordsByID)
+      print(">>This record not added. \n\n")
+    } else {
+      
+      # print(writeLine)
+      
+      query=paste0("INSERT INTO locations (name, geometry, sourcenote, sitenote, source_site_id) VALUES ('",
+                   writeLine$name,"', ",
+                   "'SRID=",srid,";POINT(",writeLine$point,")', '",
+                   writeLine$sourcenote,"', '",
+                   writeLine$sitenote,"', '",
+                   writeLine$source_site_id,"');" )
+      
+      #print(query)
+      
+      dbExecute(conn,query)
+      
+    }
     
   }
   dbRemoveDuplicates(table="locations",idCol = "locationid", uniqueCols = c("name","geometry","sourcenote","source_site_id","sitenote"))

@@ -10,12 +10,14 @@ conn=scdbConnect(readOnly = F)
 
 basePath="C:\\Users\\sam\\Dropbox\\NIFA Project\\DB_Intake\\Hydrology\\"
 
-compileGWSheetsToDF=function(xlFile){
+compileContinuousGWSheetsToDF=function(xlFile){
   
   sheets = excel_sheets(xlFile)
   locationsDF=dbGetQuery(conn,"SELECT locationid, name, sourcenote, source_site_id FROM locations;")
   locationSheets=sheets[sheets %in% locationsDF$source_site_id]
+  notLocationSheets=sheets[!sheets %in% locationSheets]
   
+  print(paste("Sheets not referenced to location:",notLocationSheets))
   
   sheetDataGrabber=function(xlFile,sheetName){
     print(sheetName)
@@ -51,10 +53,11 @@ compileGWSheetsToDF=function(xlFile){
   outDF=outDF[complete.cases(outDF),]
   return(outDF)
 }
-wkshtName="WRV_IDWR_Groundwater_Level_Continuous_Well_data_TABULAR.xlsx"
-gw_1=paste0(basePath,)
+xlName="WRV_IDWR_Groundwater_Level_Continuous_Well_data_TABULAR.xlsx"
+gw_1=paste0(basePath,xlName)
 
-df_1=compileGWSheetsToDF(xlFile)
+df_1=compileContinuousGWSheetsToDF(gw_1)
+
 
 
 dbWriteData(metric="Depth to Groundwater",
@@ -65,4 +68,43 @@ dbWriteData(metric="Depth to Groundwater",
             units="Feet below ground surface",addMetric = T)
 
 
+
+
+compileManualGWSheetsToDF=function(xlFile){
+  
+  sheets = excel_sheets(xlFile)
+  locationsDF=dbGetQuery(conn,"SELECT locationid, name, sourcenote, source_site_id FROM locations;")
+  locationSheets=sheets[sheets %in% locationsDF$source_site_id]
+  notLocationSheets=sheets[!sheets %in% locationSheets]
+  print(paste("Sheets not referenced to location:",notLocationSheets))
+  
+  sheetDataGrabber=function(xlFile,sheetName){
+    print(sheetName)
+    thisSheet=read_excel(path=xlFile,sheet=sheetName,.name_repair = "minimal")
+    
+    outDF=thisSheet[,c("Site Number", "Date", "Manual Depth to Groundwater", "Measurement Type")]
+    names(outDF)[3]="Depth to Groundwater"
+    outDF$locationID=sheetName
+    return(outDF)
+  }
+  
+  xlDF=data.frame(`Site Number`=numeric(),Date=character(),`Depth to Groundwater`=numeric(),`Measurement Type`=character(),locationID=numeric())
+  for(s in locationSheets){
+    outDF=sheetDataGrabber(xlFile,s)
+    rbind(xlDF,outDF)
+  }
+  outDF=outDF[complete.cases(outDF),]
+  return(outDF)
+}
+
+xlName="WRV_IDWR_Groundwater_Level_Manual_Well_data_TABULAR.xlsx"
+gw_2=paste0(basePath,xlName)
+df_2=compileManualGWSheetsToDF(gw_2)
+
+
+dbWriteData(metric="Depth to Groundwater",
+            value=df_2$`Depth to Groundwater`,
+            datetime=df_2$Date,
+            locationID=df_2$locationID,
+            sourceName=xlName)
 
