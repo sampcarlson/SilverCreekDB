@@ -137,6 +137,9 @@ compileSWSheetsToDF=function(xlFile){
     
     outDF=thisSheet[,c("STANAME", "STAID", "Date", "Discharge")]
     names(outDF)[4]="Flow"
+    
+    outDF$Date=as.Date(outDF$Date,format="%Y-%m-%d")
+    
     locationID=dbGetQuery(conn,paste0("SELECT * FROM locations WHERE locations.source_site_id = '",sheetName,"';"))$locationid
     outDF$locationID=locationID
     return(outDF)
