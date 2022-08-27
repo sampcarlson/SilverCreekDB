@@ -31,9 +31,10 @@ dbGetQuery(conn, "SELECT b.batchid FROM batches b, batches b2 WHERE b.source = b
 
 uniqueCols=c("source","include")
 
-
+dbGetQuery(conn,"SELECT * FROM metrics;")
 
 dbGetQuery(conn,"SELECT metric, COUNT(*) AS CountOf FROM data GROUP BY metric HAVING COUNT(*)>1;")
 dbGetQuery(conn,"SELECT metric, value, datetime, locationid, COUNT(*) FROM data 
             GROUP BY metric, value, datetime, locationid HAVING( COUNT(*) > 1);")
 
+head(dbGetQuery(conn,"SELECT * FROM locations;"))

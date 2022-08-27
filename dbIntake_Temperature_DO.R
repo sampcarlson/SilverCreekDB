@@ -6,25 +6,22 @@ library(DBI)
 source("~/R/projects/SilverCreekDB/dbIntakeTools.R")
 conn=scdbConnect(readOnly = F)
 
-.db____DROPALLDATA()
+#.db____DROPALLDATA()
 
 #write locations:
 temperaturePoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")
+temperaturePoints$ID=paste0("WaterTemp_",temperaturePoints$ID)
 dbWritePoints(temperaturePoints,sourceNoteCol="source_TemperatureLocations.gpkg")
 
 doPoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_DOLocations.gpkg")
+doPoints$ID=paste0("DO_",doPoints$ID)
 dbWritePoints(doPoints,locationNameCol = "Name", sourceNoteCol = "source_DOLocations.gpkg",siteNoteCol="description")
-
-gwPoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_GWLocations.gpkg")
-dbWritePoints(gwPoints,locationNameCol = "SiteName", sourceNoteCol = "source_GWLocations.gpkg",siteNoteCol="WaterUse",source_siteIDCol = "WellNumber")
-#write total depth or instrument to data?
-
-swPoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_SWLocations.gpkg")
-dbWritePoints(swPoints,locationNameCol = "STANAME", sourceNoteCol = "source_SWLocations.gpkg",siteNoteCol="STAID",source_siteIDCol = "STAID")
 
 #write DO and temperature data
 dbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
 dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
+
+#dbWriteIntakeFile_1(dbIntakeKey$fileName[100])
 
 sapply(dbIntakeKey$fileName, dbWriteIntakeFile_1)
 

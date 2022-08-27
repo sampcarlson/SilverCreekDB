@@ -181,7 +181,7 @@ parseIntakeFile=function(intakeFileName,metric='auto',basePath='C:/Users/sam/Dro
   
   siteIndex=read.csv(paste0(basePath,siteIndexFile))
   
-  thisSite=siteIndex$site[siteIndex$fileName==intakeFileName]
+  thisSite=paste0(siteIndex$metric[siteIndex$fileName==intakeFileName],"_",siteIndex$site[siteIndex$fileName==intakeFileName])
   
   formFile=data.frame(Date=as.POSIXlt(rawFile$Date,format="%m/%d/%y %I:%M:%S %p",tz="MST"),site=thisSite)
   
