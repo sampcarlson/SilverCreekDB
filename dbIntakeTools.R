@@ -243,7 +243,9 @@ dbWritePoints=function(writeDF,locationNameCol="Name",sourceNoteCol="",siteNoteC
       print(writeLine)
       print(">>Matching records found:")
       print(matchingRecordsByID)
-      print(">>This record not added. \n\n")
+      print(">>This record not added.")
+      print("")
+      print("")
     } else {
       
       # print(writeLine)
@@ -298,7 +300,7 @@ dbWriteIntakeFile_1=function(fileName){
   
   #write data
   if("DO" %in% names(formatDF)){
-    dbWriteData(metric="dissolved oxygen",
+    dbWriteData(metric="Dissolved Oxygen",
                 value=formatDF$DO,
                 datetime = formatDF$Date,
                 locationID=formatDF$locationID,
@@ -309,7 +311,7 @@ dbWriteIntakeFile_1=function(fileName){
   }
   
   if("WaterTemp" %in% names(formatDF)){
-    dbWriteData(metric="water temperature",
+    dbWriteData(metric="Water Temperature",
                 value=formatDF$WaterTemp,
                 datetime = formatDF$Date,
                 locationID=formatDF$locationID,

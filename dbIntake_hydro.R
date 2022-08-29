@@ -20,6 +20,9 @@ dbWritePoints(swPoints,locationNameCol = "STANAME", sourceNoteCol = "source_SWLo
 
 basePath="C:\\Users\\sam\\Dropbox\\NIFA Project\\DB_Intake\\Hydrology\\"
 
+
+######Write Continuous GW level to db -----------
+
 compileContinuousGWSheetsToDF=function(xlFile){
   
   sheets = excel_sheets(xlFile)
@@ -78,7 +81,7 @@ dbWriteData(metric="Depth to Groundwater",
             units="Feet below ground surface",addMetric = T)
 
 
-
+##############Write manual gw level to db ---------------
 
 compileManualGWSheetsToDF=function(xlFile){
   
@@ -121,7 +124,68 @@ dbWriteData(metric="Depth to Groundwater",
 
 
 
-#surface water data:-----------------
+#############Write SVGWD data to db:---------------
+compileSVGWDSheetsToDF=function(xlFile){
+  
+  sheets = excel_sheets(xlFile)
+  
+  trackTable=read_excel(xlFile,"Tracking",skip=5,.name_repair = "minimal")
+  nameDefs=data.frame(ES_ID=trackTable$`Ecosystem Sciences Well ID Number`, SRC_ID=trackTable$`Well Number`)
+  
+  sheetNamesDf=data.frame(sheetName=sheets)
+  sheetNamesDf=merge(sheetNamesDf,nameDefs,by.x="sheetName",by.y="ES_ID",all.x=T)
+  
+  locationsDF=dbGetQuery(conn,"SELECT locationid, name, sourcenote, source_site_id FROM locations;")
+  locationSheets=sheetNamesDf[sheetNamesDf$SRC_ID %in% locationsDF$source_site_id,]
+  notLocationSheets=sheetNamesDf[!sheetNamesDf$SRC_ID %in% locationsDF$source_site_id,]
+  print(paste("Sheets not referenced to location:",paste(notLocationSheets,collapse=", ")))
+  print("Sheets referenced to location:")
+  
+  sheetDataGrabber=function(xlFile,sheetName,siteID){
+    print(sheetName)
+    thisSheet=as.data.frame(read_excel(path=xlFile,sheet=sheetName))
+    
+    thisSheet=rbind(data.frame(WellNumber=thisSheet$WellNumber...1, 
+                               Date=thisSheet$Date...3,
+                               DepthToGW=thisSheet$DepthToGW...4,
+                               MeasureType=thisSheet$MeasurementType...5),
+                    data.frame(WellNumber=thisSheet$WellNumber...7, 
+                               Date=thisSheet$Date...9,
+                               DepthToGW=thisSheet$DepthToGW...10,
+                               MeasureType=thisSheet$MeasurementType...11)
+    )
+    
+    outDF=thisSheet[,c("WellNumber", "Date", "DepthToGW", "MeasureType")]
+    
+    
+    outDF$Date=as.Date(outDF$Date,format="%Y-%m-%d")
+    
+    locationID=dbGetQuery(conn,paste0("SELECT * FROM locations WHERE locations.source_site_id = '",siteID,"';"))$locationid
+    outDF$locationID=locationID
+    return(outDF)
+  }
+  
+  outDF=data.frame(`WellNumber`=character(),`Date`=character(),`DepthToGW`=numeric(),`locationID`=numeric())
+  for(i in 1:nrow(locationSheets)){
+    addDF=sheetDataGrabber(xlFile,sheetName=locationSheets$sheetName[i],siteID=locationSheets$SRC_ID[i])
+    outDF=rbind(outDF,addDF)
+  }
+  #outDF=outDF[complete.cases(outDF),]
+  return(outDF)
+}
+
+xlName="WRV_SVGWD_Groundwater_Level_Well_data_TABULAR.xlsx"
+gw_3=paste0(basePath,xlName)
+gw_3=compileSVGWDSheetsToDF(gw_3)
+
+dbWriteData(metric="Depth to Groundwater",
+            value=gw_3$DepthToGW,
+            datetime=gw_3$Date,
+            locationID=gw_3$locationID,
+            sourceName=xlName)
+
+
+########Write surface water data to db:-----------------
 compileSWSheetsToDF=function(xlFile){
   
   sheets = excel_sheets(xlFile)
@@ -164,7 +228,7 @@ dbWriteData(metric="Flow",
             locationID=df_3$locationID,
             sourceName = xlName,
             addMetric = T, units="cfs")
-#https://www.usbr.gov/pn/agrimet/agrimetmap/picida.html
-#https://www.usbr.gov/pn/agrimet/agrimetmap/fafida.html
 
 
+
+#diversions data not yet added
