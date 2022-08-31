@@ -2,6 +2,7 @@
 library(sf)
 library(RPostgres)
 library(DBI)
+library(pbapply)
 
 source("~/R/projects/SilverCreekDB/dbIntakeTools.R")
 conn=scdbConnect(readOnly = F)
@@ -23,8 +24,57 @@ dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
 #dbWriteIntakeFile_1(dbIntakeKey$fileName[100])
 
-sapply(dbIntakeKey$fileName, dbWriteIntakeFile_1)
 
-#dbWriteData(metric, value, datetime, locationID, sourceName, units, isPrediction, addMetric)
+dbWriteIntakeFile_1=function(fileName){
+  #print(fileName)
+  formatDF=parseIntakeFile(fileName)
+  #identify location source
+  if("DO" %in% names(formatDF)){ 
+    sourceNote="source_DOLocations.gpkg"
+  } else if ("WaterTemp" %in% names(formatDF)) { #DO datasets also contain WaterTemp, thus this condition only applies if "DO" is absent
+    sourceNote="source_TemperatureLocations.gpkg"
+  }
+  #get location ids
+  locations=data.frame(source_site=unique(formatDF$site))
+  locationIDs=dbGetQuery(conn,paste0("SELECT locationid, source_site_id FROM locations WHERE locations.source_site_id IN ('",
+                                     paste0(locations$source_site,collapse="', '"),"');"))
+  
+  if(!all(locations$source_site %in% locationIDs$source_site_id)){
+    print(paste0("Missing location information for site:",locations$source_site[!locations$source_site %in% locationIDs$source_site_id]))
+    
+  } else {
+    #locations=merge(locations,locationIDs,by.x="site",by.y="source_site_id")
+    
+    #locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote=sourceNote)
+    
+    formatDF=merge(formatDF,locationIDs,by.x="site",by.y="source_site_id")
+    
+    
+    #write data
+    if("DO" %in% names(formatDF)){
+      dbWriteData(metric="Dissolved Oxygen",
+                  value=formatDF$DO,
+                  datetime = formatDF$Date,
+                  locationID=formatDF$locationid,
+                  sourceName=fileName,
+                  units = "mg/l",
+                  isPrediction=F,
+                  addMetric=T)
+    }
+    
+    if("WaterTemp" %in% names(formatDF)){
+      dbWriteData(metric="Water Temperature",
+                  value=formatDF$WaterTemp,
+                  datetime = formatDF$Date,
+                  locationID=formatDF$locationid,
+                  sourceName=fileName,
+                  units = "c",
+                  isPrediction=F,
+                  addMetric=T)
+    }
+  }
+  
+}
 
 
+pbsapply(dbIntakeKey$fileName, dbWriteIntakeFile_1)

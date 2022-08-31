@@ -52,7 +52,7 @@ dbWriteBatch=function(batch,notes=" ",include=T,dbHandle=conn){
   return(batchID)
 }
 
-dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPrediction=F,addMetric=F,dbHandle=conn){
+dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPrediction=F,simnumber=0,addMetric=F,dbHandle=conn){
   if(is.data.frame(value)){value=value[,1]} #strip extra attributes
   
   #first check batches, locations, and metrics
@@ -120,7 +120,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   ########write data:--------------
   
   
-  writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID)
+  writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID,simnumber=simnumber)
   writeMe$value=as.numeric(writeMe$value)
   writeMe=writeMe[complete.cases(writeMe$value),]
   
@@ -140,7 +140,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   #  }
   
   #delete not unique:
-  dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid"))
+  dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid","simnumber"))
 }
 
 dbGetLocationID=function(source_site_id,sourceNote){
@@ -281,46 +281,6 @@ dbRemoveDuplicates=function(table, idCol, uniqueCols){
   }
   return(paste("Removed",length(rmID),"duplicate(s) from table: ", table))
   #return(rmID)
-}
-
-dbWriteIntakeFile_1=function(fileName){
-  print(fileName)
-  formatDF=parseIntakeFile(fileName)
-  #identify location source
-  if("DO" %in% names(formatDF)){ 
-    sourceNote="source_DOLocations.gpkg"
-  } else if ("WaterTemp" %in% names(formatDF)) { #DO datasets also contain WaterTemp, thus this condition only applys if "DO" is absent
-    sourceNote="source_TemperatureLocations.gpkg"
-  }
-  #get location ids
-  locations=data.frame(source_site=unique(formatDF$site))
-  locations$locationID=sapply(locations$source_site,dbGetLocationID,sourceNote=sourceNote)
-  
-  formatDF=merge(formatDF,locations,by.x="site",by.y="source_site")
-  
-  #write data
-  if("DO" %in% names(formatDF)){
-    dbWriteData(metric="Dissolved Oxygen",
-                value=formatDF$DO,
-                datetime = formatDF$Date,
-                locationID=formatDF$locationID,
-                sourceName=fileName,
-                units = "mg/l",
-                isPrediction=F,
-                addMetric=T)
-  }
-  
-  if("WaterTemp" %in% names(formatDF)){
-    dbWriteData(metric="Water Temperature",
-                value=formatDF$WaterTemp,
-                datetime = formatDF$Date,
-                locationID=formatDF$locationID,
-                sourceName=fileName,
-                units = "c",
-                isPrediction=F,
-                addMetric=T)
-  }
-  
 }
 
 

@@ -73,12 +73,12 @@ df_1=compileContinuousGWSheetsToDF(gw_1)
 
 
 
-dbWriteData(metric="Depth to Groundwater",
+dbWriteData(metric="depth to groundwater",
             value=df_1$`Depth to Groundwater`,
             datetime=df_1$Date,
             locationID=df_1$locationID,
             sourceName="WRV_IDWR_Groundwater_Level_Continuous_Well_data_TABULAR.xlsx",
-            units="Feet below ground surface",addMetric = T)
+            units="feet below ground surface",addMetric = T)
 
 
 ##############Write manual gw level to db ---------------
@@ -116,7 +116,7 @@ gw_2=paste0(basePath,xlName)
 df_2=compileManualGWSheetsToDF(gw_2)
 
 
-dbWriteData(metric="Depth to Groundwater",
+dbWriteData(metric="depth to groundwater",
             value=df_2$`Depth to Groundwater`,
             datetime=df_2$Date,
             locationID=df_2$locationID,
@@ -178,7 +178,7 @@ xlName="WRV_SVGWD_Groundwater_Level_Well_data_TABULAR.xlsx"
 gw_3=paste0(basePath,xlName)
 gw_3=compileSVGWDSheetsToDF(gw_3)
 
-dbWriteData(metric="Depth to Groundwater",
+dbWriteData(metric="depth to groundwater",
             value=gw_3$DepthToGW,
             datetime=gw_3$Date,
             locationID=gw_3$locationID,
@@ -222,7 +222,7 @@ xlName="WRV_Surface_Hydrology_data_TABULAR.xlsx"
 sw_1=paste0(basePath,xlName)
 df_3=compileSWSheetsToDF(sw_1)
 
-dbWriteData(metric="Flow",
+dbWriteData(metric="flow",
             value=df_3$Flow,
             datetime = df_3$Date,
             locationID=df_3$locationID,
