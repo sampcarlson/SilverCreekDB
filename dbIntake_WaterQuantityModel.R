@@ -212,6 +212,8 @@ getDateDF=data.frame(metric=c("center of mass (april 1 - july 31)",
                                  "-11-01")
 )
 
+#########is nov - jan air temp year wrong?  ----------
+
 allVarsLong=merge(allVarsLong,getDateDF,by.x="metric",by.y="metric")
 
 for(m in unique(allVarsLong$metric)){
