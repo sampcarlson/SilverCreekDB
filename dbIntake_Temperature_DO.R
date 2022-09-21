@@ -52,7 +52,7 @@ dbWriteIntakeFile_1=function(fileName){
     
     #write data
     if("DO" %in% names(formatDF)){
-      dbWriteData(metric="Dissolved Oxygen",
+      dbWriteData(metric="dissolved oxygen",
                   value=formatDF$DO,
                   datetime = formatDF$Date,
                   locationID=formatDF$locationid,
@@ -63,7 +63,7 @@ dbWriteIntakeFile_1=function(fileName){
     }
     
     if("WaterTemp" %in% names(formatDF)){
-      dbWriteData(metric="Water Temperature",
+      dbWriteData(metric="water wemperature",
                   value=formatDF$WaterTemp,
                   datetime = formatDF$Date,
                   locationID=formatDF$locationid,

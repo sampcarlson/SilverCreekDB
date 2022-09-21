@@ -1,4 +1,4 @@
-library(sf)
+`library(sf)
 library(RPostgres)
 library(DBI)
 
@@ -311,3 +311,30 @@ dbWriteData(metric="predicted daily flow",isPrediction = T, units="cfs",
             sourceName="sc.flow.simLong.csv")
 
 
+
+##### write colume sample long-----------
+volSample=read.csv(paste0(basePath,"volumes.sampleLong.csv"))
+volSample=merge(volSample,siteDefs,by.x="site_name",by.y="site_abbr")
+locationIDs=dbGetQuery(conn,paste0("SELECT locationid, source_site_id FROM locations WHERE locations.source_site_id IN ('",
+                                   paste0(unique(volSample$source_site_ID),collapse="', '"),"');"))
+volSample=merge(volSample,locationIDs,by.x="source_site_ID",by.y="source_site_id")
+
+
+
+##########this inserts arbitrary simulation numbers that may not match up with other uses of simNumber
+volSample$simNumber=0
+
+volSample$simNumber[volSample$site_name=="bwb.vol"]=1:5000
+volSample$simNumber[volSample$site_name=="bws.vol"]=1:5000
+volSample$simNumber[volSample$site_name=="cc.vol"]=1:5000
+volSample$simNumber[volSample$site_name=="sc.vol"]=1:5000
+
+thisDateTime=paste0(format.Date(Sys.Date(),"%Y"),"-04-01")
+
+
+dbWriteData(metric="simulated irrigation season volume (april 1 - september 31)", units = "acre-feet", isPrediction = T, addMetric = T,
+            value=volSample$vol_af,
+            datetime=thisDateTime,
+            locationID=volSample$locationid,
+            simnumber = volSample$simNumber,
+            sourceName = "volumes.sampleLong.csv")

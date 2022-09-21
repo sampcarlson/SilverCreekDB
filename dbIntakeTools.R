@@ -91,7 +91,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   
   if(!metricIsNumeric) {#if metric is not numeric
     #look for metric by name, get id
-    metricID=dbGetQuery(dbHandle,paste0("SELECT metricid FROM metrics WHERE metrics.name = '",metric,"';"))$metricid
+    metricID=dbGetQuery(dbHandle,paste0("SELECT metricid FROM metrics WHERE metrics.name = '",metric,"' AND metrics.isprediction = '",isPrediction,"';"))$metricid
     metricName=metric 
     if(length(metricID)==1){#got it!
       metricDone=T
