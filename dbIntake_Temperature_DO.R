@@ -1,33 +1,33 @@
-#dbintake process, temperature data, 8/2022
+#dbintake process, temperature data, written 8/2022, updated 3/2024
 library(sf)
 library(RPostgres)
 library(DBI)
 library(pbapply)
 
-source("~/R/projects/SilverCreekDB/dbIntakeTools.R")
-conn=scdbConnect(readOnly = F)
+source("dbIntakeTools.R")
 
-#.db____DROPALLDATA()
 
 #write locations:
-temperaturePoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")
+temperaturePoints=st_read("C:/Users/sampc/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")
 temperaturePoints$ID=paste0("WaterTemp_",temperaturePoints$ID)
-dbWritePoints(temperaturePoints,sourceNoteCol="source_TemperatureLocations.gpkg")
+#dbWritePoints(temperaturePoints,sourceNoteCol="source_TemperatureLocations.gpkg")
 
-doPoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_DOLocations.gpkg")
+doPoints=st_read("C:/Users/sampc/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_DOLocations.gpkg")
 doPoints$ID=paste0("DO_",doPoints$ID)
-dbWritePoints(doPoints,locationNameCol = "Name", sourceNoteCol = "source_DOLocations.gpkg",siteNoteCol="description")
+#dbWritePoints(doPoints,locationNameCol = "Name", sourceNoteCol = "source_DOLocations.gpkg",siteNoteCol="description")
 
 #write DO and temperature data
-dbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
+dbIntakePath='C:/Users/sampc/Dropbox/NIFA Project/DB_Intake_3_24/csv/'
 dbIntakeKey=read.csv(paste0(dbIntakePath,"_siteIndex.csv"))
 
 #dbWriteIntakeFile_1(dbIntakeKey$fileName[100])
 
 
 dbWriteIntakeFile_1=function(fileName){
+  #for Debug:
+  #fileName=dbIntakeKey$fileName[1]
   #print(fileName)
-  formatDF=parseIntakeFile(fileName)
+  formatDF=parseIntakeFile(fileName,basePath = 'C:/Users/sampc/Dropbox/NIFA Project/DB_Intake_3_24/csv/')
   #identify location source
   if("DO" %in% names(formatDF)){ 
     sourceNote="source_DOLocations.gpkg"
@@ -78,3 +78,4 @@ dbWriteIntakeFile_1=function(fileName){
 
 
 pbsapply(dbIntakeKey$fileName, dbWriteIntakeFile_1)
+

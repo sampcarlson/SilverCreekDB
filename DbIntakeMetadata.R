@@ -1,4 +1,4 @@
-DbIntakePath='C:/Users/sam/Dropbox/NIFA Project/DB_Intake/'
+DbIntakePath='C:/Users/sampc/Dropbox/NIFA Project/DB_Intake_3_24/csv/'
 
 #files starting with '_' are ignored
 allFiles=list.files(DbIntakePath,pattern='')
@@ -23,16 +23,18 @@ getSite=function(fileName){
     thisSite=substr(x=fileName,start=siteCharIndex+1,stop=siteCharIndex+attr(siteCharIndex,'match.length')-1)
     
   }#else if(grepl('#',fileName)) {
-  #siteCharIndex=regexpr('#[0-9]{1,2}',fileName)
-  #
-  #}
+  # siteCharIndex=regexpr('#[0-9]{1,2}',fileName)
+  # 
+  # }
+
   return(thisSite)
 }
 
+dbInputKey$metric=sub("_year.*","",dbInputKey$fileName)
 
 dbInputKey$site=sapply(dbInputKey$fileName,getSite)
 
-file.copy(from=paste0(DbIntakePath,allFiles[isMeta]),to=paste0(DbIntakePath,"_backup_",Sys.Date(),allFiles[isMeta]))
+#file.copy(from=paste0(DbIntakePath,allFiles[isMeta]),to=paste0(DbIntakePath,"_backup_",Sys.Date(),allFiles[isMeta]))
 
 write.csv(dbInputKey,paste0(DbIntakePath,"_siteIndex.csv"))
 

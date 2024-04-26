@@ -4,7 +4,7 @@ library(DBI)
 
 source("~/R/projects/SilverCreekDB/dnIntakeTools.R")
 
-conn=scdbConnect(readOnly = F)
+conn=scdbConnect()
 
 #write Points:
 temperaturePoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_TemperatureLocations.gpkg")

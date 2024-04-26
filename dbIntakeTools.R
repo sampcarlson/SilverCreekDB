@@ -1,24 +1,16 @@
 
-scdbConnect=function(readOnly=T){
-  if(readOnly){
-    conn=dbConnect(RPostgres::Postgres(),
-                   host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
-                   port="25060",
-                   dbname="silvercreekdb" ,
-                   user="dbread",
-                   password=Sys.getenv("scdb_readPass")
-    )
-  } else {
-    conn=dbConnect(RPostgres::Postgres(),
-                   host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
-                   port="25060",
-                   dbname="silvercreekdb" ,
-                   user="dbwrite",
-                   password=Sys.getenv("scdb_pass")
-    )
-  }
+scdbConnect=function(){
+  conn=dbConnect(RPostgres::Postgres(),
+                 host="silvercreekdb-do-user-12108041-0.b.db.ondigitalocean.com",
+                 port="25060",
+                 dbname="silvercreekdb" ,
+                 user="dbread",
+                 password="dbread"
+  )
   return(conn)
 }
+
+conn=scdbConnect()
 
 escapeSingleQuote=function(df){
   df[]=lapply(df,function (X) {gsub( "'","''",X)})
@@ -52,7 +44,7 @@ dbWriteBatch=function(batch,notes=" ",include=T,dbHandle=conn){
   return(batchID)
 }
 
-dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPrediction=F,simnumber=0,addMetric=F,dbHandle=conn){
+dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPrediction=F,simnumber=0,addMetric=F,qcStatus=T,qcDetails="",dbHandle=conn){
   if(is.data.frame(value)){value=value[,1]} #strip extra attributes
   
   #first check batches, locations, and metrics
@@ -75,7 +67,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   
   if(length(metric)>1){
     print(paste("metrics:",metric))
-    stop("Only metric allowed per writeData function call")
+    stop("Only metric allowed per dbWriteData function call")
   }
   
   if (metricIsNumeric) {
@@ -114,7 +106,7 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   if(!metricDone){ #if the above lines did not define a metric
     print(paste("Metric", metric, "not found or added.  Known metrics:"))
     print(dbGetQuery(dbHandle,"SELECT * FROM metrics;"))
-    stop("correct or set addMetric=T")
+    stop("correct metric definition or set addMetric=T to add new metric")
   } 
   
   ########write data:--------------
@@ -122,10 +114,39 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   
   writeMe=data.frame(metric=metricName,value=value,datetime=datetime,metricid=metricID,locationid=locationID,batchid=batchID,simnumber=simnumber)
   writeMe$value=as.numeric(writeMe$value)
+  writeMe$qcstatus[qcStatus]="true"
+  writeMe$qcstatus[!qcStatus]="false"
+  writeMe$qcdetails=qcDetails
+  
   writeMe=writeMe[complete.cases(writeMe$value),]
   
-  dbAppendTable(conn, name="data", value=writeMe)
+  potentialDups=dbGetQuery(conn, paste0("SELECT metricid, metric, value, datetime, locationid, simnumber FROM data WHERE metricid = '",metricID,
+                                        "' AND locationid IN ('",paste(locationID,collapse="', '"),"') AND  datetime IN ('",
+                                        paste(datetime,collapse="', '"),"');"))
   
+  potentialDups=rbind(potentialDups,writeMe[,c("metricid","metric","value","datetime","locationid","simnumber")])
+  
+  moreDups=T
+  while(moreDups){
+    notDups=potentialDups[!duplicated(potentialDups) & !duplicated(potentialDups,fromLast = T),]
+    if(nrow(notDups)==nrow(potentialDups)){
+      moreDups=F
+    } else {
+      potentialDups=notDups
+    }
+  }
+  
+  if(nrow(notDups)>=1){
+    writeMe=merge(notDups,writeMe)
+    
+    # if(qcStatus==F){
+    #   writeMe$qcstatus="false"
+    # }
+    
+    
+    dbAppendTable(conn, name="data", value=writeMe)
+    
+  }
   #one at a time (for debug)
   #  for(i in 1:nrow(writeMe)){
   #    query=paste0("INSERT INTO data (metric, value, datetime, metricid, locationid, batchid) VALUES ('",
@@ -140,7 +161,8 @@ dbWriteData=function(metric,value,datetime,locationID,sourceName,units="",isPred
   #  }
   
   #delete not unique:
-  dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid","simnumber"))
+  #slow as hell, replaced with while loop above
+  #dbRemoveDuplicates(table="data",idCol = "dataid", uniqueCols = c("metric","value","datetime","metricid","locationid","simnumber"))
 }
 
 dbGetLocationID=function(source_site_id,sourceNote){
@@ -174,7 +196,7 @@ parseIntakeFile=function(intakeFileName,metric='auto',basePath='C:/Users/sam/Dro
     }
   }
   
-  writeLog(paste('Read file',intakeFileName,'with names',paste(names(rawFile),collapse = ', ')))
+  writeLog(paste('Read file',intakeFileName,'with names',paste(names(rawFile),collapse = ', ')),basePath=basePath)
   
   dateColIdx=which(grepl("Date",names(rawFile)))
   names(rawFile)[dateColIdx]="Date"
@@ -189,16 +211,16 @@ parseIntakeFile=function(intakeFileName,metric='auto',basePath='C:/Users/sam/Dro
     
     if(sum(grepl("Temp",names(rawFile)))==1){
       tempColIDX=which(grepl("Temp",names(rawFile)))
-      writeLog(paste("interpreted",names(rawFile)[tempColIDX],'as Water Temperature (c)'))
+      writeLog(paste("interpreted",names(rawFile)[tempColIDX],'as Water Temperature (c)'),basePath = basePath)
       names(rawFile)[tempColIDX]="WaterTemp"
       formFile$WaterTemp=rawFile[,tempColIDX]
     }
     
     if(sum(grepl("DO",names(rawFile)))==1){
       DOColIDX=which(grepl("DO",names(rawFile)))
-      writeLog(paste("interpreted",names(rawFile)[DOColIDX],'as DO (mg/L)'))
+      writeLog(paste("interpreted",names(rawFile)[DOColIDX],'as DO (mg/L)'),basePath = basePath)
       names(rawFile)[DOColIDX]="DO"
-      formFile$DO=rawFile[DOColIDX]
+      formFile$DO=rawFile[,DOColIDX]
       
     }
   }
@@ -264,7 +286,9 @@ dbWritePoints=function(writeDF,locationNameCol="Name",sourceNoteCol="",siteNoteC
     }
     
   }
+  
   dbRemoveDuplicates(table="locations",idCol = "locationid", uniqueCols = c("name","geometry","sourcenote","source_site_id","sitenote"))
+  
   #return(writeDF)
 }
 
@@ -283,10 +307,10 @@ dbRemoveDuplicates=function(table, idCol, uniqueCols){
   #return(rmID)
 }
 
-
-.db____DROPALLDATA=function(){
-  dbExecute(conn,"TRUNCATE TABLE data RESTART IDENTITY CASCADE;")
-  dbExecute(conn,"TRUNCATE TABLE metrics RESTART IDENTITY CASCADE;")
-  dbExecute(conn,"TRUNCATE TABLE locations RESTART IDENTITY CASCADE;")
-  dbExecute(conn,"TRUNCATE TABLE batches RESTART IDENTITY CASCADE;")
-}
+# 
+# .db____DROPALLDATA=function(){
+#   dbExecute(conn,"TRUNCATE TABLE data RESTART IDENTITY CASCADE;")
+#   dbExecute(conn,"TRUNCATE TABLE metrics RESTART IDENTITY CASCADE;")
+#   dbExecute(conn,"TRUNCATE TABLE locations RESTART IDENTITY CASCADE;")
+#   dbExecute(conn,"TRUNCATE TABLE batches RESTART IDENTITY CASCADE;")
+# }

@@ -1,4 +1,4 @@
-BasePath="C:\\Users\\sam\\Documents\\SilverCreek\\ES_Data_Dump"
+BasePath="C:\\Users\\sampc\\Dropbox\\NIFA Project\\DB_Intake_3_24"
 
 list.files(BasePath)
 
@@ -39,11 +39,11 @@ nameAndWrite=function(prepend="",path=BasePath,outPath=paste0(BasePath,"\\Out"))
     }
     if(isNumeric(d)){
       d=as.numeric(d)
-      if(d > 2000){  # min year
+      if(d >= 2022){  # min year, set to avoid re-processing data that is already in db
         nameAndWrite(prepend=paste0(prepend,"year",as.character(d),"_"),path=paste0(path,"\\",d))
-      } else {
-        nameAndWrite(prepend=paste0(prepend,"site",as.character(d),"_"),path=paste0(path,"\\",d))
-      }
+      }# else {
+      #   nameAndWrite(prepend=paste0(prepend,"site",as.character(d),"_"),path=paste0(path,"\\",d))
+      # }
     }
   }
 }
