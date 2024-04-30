@@ -33,8 +33,21 @@ uniqueCols=c("source","include")
 
 dbGetQuery(conn,"SELECT * FROM metrics;")
 
-dbGetQuery(conn,"SELECT metric, COUNT(*) AS CountOf FROM data GROUP BY metric HAVING COUNT(*)>1;")
+
 dbGetQuery(conn,"SELECT metric, value, datetime, locationid, COUNT(*) FROM data 
             GROUP BY metric, value, datetime, locationid HAVING( COUNT(*) > 1);")
 
-head(dbGetQuery(conn,"SELECT * FROM locations;"))
+
+
+dataSummary_loc=dbGetQuery(conn,"SELECT COUNT(value) AS num_records, metric, metricid, locations.name AS location, MIN(datetime) AS first_record, MAX(datetime) AS last_record FROM data
+           LEFT JOIN locations ON data.locationid = locations.locationid
+           GROUP BY metric, locations.name, metricid;")
+
+
+dataSummary_metric=dbGetQuery(conn,"SELECT COUNT(value) AS num_records, metric, metricid, MIN(datetime) AS first_record, MAX(datetime) AS last_record FROM data
+           GROUP BY metric, metricid;")
+
+
+
+
+dbGetQuery(conn,"SELECT * FROM metrics;")

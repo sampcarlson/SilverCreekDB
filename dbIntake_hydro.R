@@ -5,8 +5,8 @@ library(DBI)
 #tidyverse packege for xl:
 library(readxl)
 
-source("~/R/projects/SilverCreekDB/dbIntakeTools.R")
-conn=scdbConnect(readOnly = F)
+source("dbIntakeTools.R")
+conn=scdbConnect()
 
 gwPoints=st_read("C:/Users/sam/Dropbox/NIFA Project/DB_Intake/SpatialSource/source_GWLocations.gpkg")
 dbWritePoints(gwPoints,locationNameCol = "SiteName", sourceNoteCol = "source_GWLocations.gpkg",siteNoteCol="WaterUse",source_siteIDCol = "WellNumber")
@@ -18,7 +18,7 @@ dbWritePoints(swPoints,locationNameCol = "STANAME", sourceNoteCol = "source_SWLo
 
 
 
-basePath="C:\\Users\\sam\\Dropbox\\NIFA Project\\DB_Intake\\Hydrology\\"
+basePath="/home/sam/Dropbox/NIFA Project/DB_Intake_3_24/Hydrology/"
 
 
 ######Write Continuous GW level to db -----------
@@ -26,6 +26,9 @@ basePath="C:\\Users\\sam\\Dropbox\\NIFA Project\\DB_Intake\\Hydrology\\"
 compileContinuousGWSheetsToDF=function(xlFile){
   
   sheets = excel_sheets(xlFile)
+  
+  if()
+  
   locationsDF=dbGetQuery(conn,"SELECT locationid, name, sourcenote, source_site_id FROM locations;")
   locationSheets=sheets[sheets %in% locationsDF$source_site_id]
   notLocationSheets=sheets[!sheets %in% locationSheets]
@@ -66,7 +69,9 @@ compileContinuousGWSheetsToDF=function(xlFile){
   outDF=outDF[complete.cases(outDF),]
   return(outDF)
 }
-xlName="WRV_IDWR_Groundwater_Level_Continuous_Well_data_TABULAR.xlsx"
+
+
+xlName="WRV_SVGWD_Groundwater_Level_Well_data_TABULAR.xlsx"
 gw_1=paste0(basePath,xlName)
 
 df_1=compileContinuousGWSheetsToDF(gw_1)
@@ -78,7 +83,7 @@ dbWriteData(metric="depth to groundwater",
             datetime=df_1$Date,
             locationID=df_1$locationID,
             sourceName="WRV_IDWR_Groundwater_Level_Continuous_Well_data_TABULAR.xlsx",
-            units="feet below ground surface",addMetric = T)
+            units="feet below ground surface",addMetric = F)
 
 
 ##############Write manual gw level to db ---------------
@@ -111,7 +116,7 @@ compileManualGWSheetsToDF=function(xlFile){
   return(outDF)
 }
 
-xlName="WRV_IDWR_Groundwater_Level_Manual_Well_data_TABULAR.xlsx"
+#xlName="WRV_IDWR_Groundwater_Level_Manual_Well_data_TABULAR.xlsx"
 gw_2=paste0(basePath,xlName)
 df_2=compileManualGWSheetsToDF(gw_2)
 
@@ -174,9 +179,12 @@ compileSVGWDSheetsToDF=function(xlFile){
   return(outDF)
 }
 
+
 xlName="WRV_SVGWD_Groundwater_Level_Well_data_TABULAR.xlsx"
 gw_3=paste0(basePath,xlName)
 gw_3=compileSVGWDSheetsToDF(gw_3)
+
+gw_3 = gw_3[complete.cases(gw_3),]
 
 dbWriteData(metric="depth to groundwater",
             value=gw_3$DepthToGW,
@@ -221,13 +229,14 @@ compileSWSheetsToDF=function(xlFile){
 xlName="WRV_Surface_Hydrology_data_TABULAR.xlsx"
 sw_1=paste0(basePath,xlName)
 df_3=compileSWSheetsToDF(sw_1)
+df_3=df_3[complete.cases(df_3),]
 
 dbWriteData(metric="flow",
             value=df_3$Flow,
             datetime = df_3$Date,
             locationID=df_3$locationID,
             sourceName = xlName,
-            addMetric = T, units="cfs")
+            addMetric = F, units="cfs")
 
 
 
